@@ -28,6 +28,8 @@ public sealed class Player : MonoBehaviour
 
     [Header("Mining")]
     [SerializeField] private GameObject miningTool;
+    [SerializeField] private GameObject carriedOrePos;
+    [SerializeField] private GameObject carriedOrePrefab;
     int pickaxeRemaining;
     public int Money => money;
     public int CarriedOre => carriedOre;
@@ -36,8 +38,8 @@ public sealed class Player : MonoBehaviour
     public int CarryHandcuffMax => carryHandcuffMax;
   
 
-    private int carriedOre;
-    private int carriedHandcuffs;
+    [SerializeField]private int carriedOre;
+   [SerializeField] private int carriedHandcuffs;
 
     private Camera cam;
 
@@ -163,17 +165,21 @@ public sealed class Player : MonoBehaviour
         return canAdd;
     }
 
-    public int AddCarriedOre(int amount)
+    public void AddCarriedOre(int amount)
     {
         if (amount <= 0)
-            return 0;
+            return;
 
         var canAdd = Mathf.Min(amount, carryOreMax - carriedOre);
         if (canAdd <= 0)
-            return 0;
+            return;
 
         carriedOre += canAdd;
-        return canAdd;
+
+        var ore =  Instantiate(carriedOrePrefab,carriedOrePos.transform);
+        ore.transform.localPosition = new Vector3(0, 0, carriedOre * 0.02f);
+        ore.transform.localRotation = Quaternion.Euler(Vector3.zero);
+        
     }
 
     public void OnMiningToolCol()
@@ -195,12 +201,18 @@ public sealed class Player : MonoBehaviour
 
         if(other.tag.Equals("Ore")) 
         {
+
+
+            AddCarriedOre(1);
+
             //°î±ªÀÌ¶ó¸é
             if (pickaxeRemaining == 1)
             {
                 pickaxeRemaining--;
                 other.GetComponent<Ore>().TryMineOne();
             }
+
+
         }
     }
 

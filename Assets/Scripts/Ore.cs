@@ -3,58 +3,27 @@ using UnityEngine;
 
 public sealed class Ore : MonoBehaviour
 {
-    [SerializeField] private float respawnSeconds = 5f;
-    [SerializeField] private GameObject visual;
-    [SerializeField] private Collider oreCollider;
 
     public bool IsAvailable => isAvailable;
 
     private bool isAvailable = true;
-    private Coroutine respawnRoutine;
 
-    private void Reset()
+
+    private void OnEnable()
     {
-        visual = gameObject;
-        oreCollider = GetComponent<Collider>();
+        isAvailable = true; // 풀에서 다시 꺼낼 때 초기화
     }
-
     public bool TryMineOne()
     {
         if (!isAvailable)
             return false;
 
-        Deplete();
+       OrePooling.instance.DespawnAndScheduleRespawn(gameObject);
         return true;
     }
 
-    private void Deplete()
-    {
-        isAvailable = false;
 
-        if (visual != null)
-            visual.SetActive(false);
-        if (oreCollider != null)
-            oreCollider.enabled = false;
+   
 
-        if (respawnRoutine != null)
-            StopCoroutine(respawnRoutine);
-        respawnRoutine = StartCoroutine(RespawnRoutine());
-    }
-
-    private IEnumerator RespawnRoutine()
-    {
-        yield return new WaitForSeconds(respawnSeconds);
-        Respawn();
-    }
-
-    private void Respawn()
-    {
-        isAvailable = true;
-
-        if (visual != null)
-            visual.SetActive(true);
-        if (oreCollider != null)
-            oreCollider.enabled = true;
-    }
 }
 
