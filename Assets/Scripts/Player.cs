@@ -1,6 +1,8 @@
 using DG.Tweening;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SocialPlatforms.Impl;
+using UnityEngine.UIElements;
 
 public sealed class Player : MonoBehaviour
 {
@@ -30,6 +32,9 @@ public sealed class Player : MonoBehaviour
 
     [Header("Mining")]
     [SerializeField] private GameObject miningTool;
+    [SerializeField] private GameObject[] miningToolList;
+    [SerializeField] private int miningToolLv=0;
+    
     [SerializeField] private GameObject carriedOrePos;
     [SerializeField] private GameObject carriedHandcuffPos;
     [SerializeField] private GameObject carriedOrePrefab;
@@ -183,15 +188,26 @@ public sealed class Player : MonoBehaviour
         var ore = Instantiate(carriedOrePrefab, carriedOrePos.transform);
         ore.transform.localPosition = new Vector3(0, 0, carriedOre * 0.02f);
         ore.transform.localRotation = Quaternion.Euler(Vector3.zero);
-
+        ore.transform.DOScale(ore.transform.localScale * 2.5f, 0.1f).OnComplete(() => ore.transform.DOScale(ore.transform.localScale * 1f, 0.2f));
     }
 
-    public void OnMiningToolCol()
+    public void UpgradeTool()
+    {
+        if (miningToolLv > miningToolList.Length - 1)
+            return;
+
+      //  miningTool.SetActive(false); 이건 필요없을듯
+        miningToolLv++;
+        miningTool = miningToolList[miningToolLv];
+
+
+    }
+    public void OnAxeCol()
     {
         pickaxeRemaining = 1;
         miningTool.GetComponent<CapsuleCollider>().enabled = true;
     }
-    public void OffMiningToolCol()
+    public void OffAxeCol()
     {
         miningTool.GetComponent<CapsuleCollider>().enabled = false;
     }
@@ -220,20 +236,23 @@ public sealed class Player : MonoBehaviour
         if (other.tag.Equals("MiningZone"))
         {
             miningTool.SetActive(true);
-            ani.SetBool("IsMining", true);
+            ani.SetInteger("Mining", miningToolLv);
         }
 
         if (other.tag.Equals("Ore"))
         {
 
-
-            AddCarriedOre(1);
-
-            //��̶��
-            if (pickaxeRemaining == 1)
+           
+            if (miningToolLv == 0 && pickaxeRemaining == 1)
             {
                 pickaxeRemaining--;
                 other.GetComponent<Ore>().TryMineOne();
+                AddCarriedOre(1);
+            }
+            else if(miningToolLv>=1)
+            {
+                other.GetComponent<Ore>().TryMineOne();
+                AddCarriedOre(1);
             }
 
 
@@ -251,7 +270,7 @@ public sealed class Player : MonoBehaviour
         if (other.tag.Equals("MiningZone"))
         {
             miningTool.SetActive(false);
-            ani.SetBool("IsMining", false);
+            ani.SetInteger("Mining", -1);
         }
     }
 }

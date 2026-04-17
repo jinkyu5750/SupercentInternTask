@@ -18,6 +18,7 @@ public sealed class CheckPoint : MonoBehaviour
     private Queue<GameObject> queue = new Queue<GameObject>();
     private Coroutine processRoutine;
 
+
     public int HandcuffsDeposited => handcuffsDeposited;
 
     /*  private void Reset()
@@ -33,6 +34,7 @@ public sealed class CheckPoint : MonoBehaviour
         var _player = other.GetComponentInParent<Player>();
         if (_player != null)
         {
+            ChangeZoneColor(true);
             var handcuffs = _player.TakeAllCarriedHandcuffs();
             var dropped = handcuffs.transform.childCount;
             if (dropped > 0)
@@ -52,12 +54,21 @@ public sealed class CheckPoint : MonoBehaviour
                      DepositHandcuffs(dropped);
              }*/
     }
+
+    private void OnTriggerExit(Collider other)
+    {
+        ChangeZoneColor(false);
+    }
+    public void ChangeZoneColor(bool active)
+    {
+        depositZone.GetComponent<MeshRenderer>().material.color = active? new Color32(50, 255, 0,255):new Color32(255,255,255,255);
+    }
     public IEnumerator MoveHandcuffToZone(GameObject handcuffs, int dropped)
     {
         for (int i = dropped - 1; i >= 0; i--)
         {
             Vector3 pos = transform.GetComponent<BoxCollider>().center; pos.x -= 0.2f; pos.y = 0.5f + (dropped - i) * 0.2f;
-            Vector3 scale = handcuffs.transform.localScale; scale.y *= 10f;
+            Vector3 scale = handcuffs.transform.localScale; scale.y *= 5f;
             Transform handcuff = handcuffs.transform.GetChild(i);
             handcuff.SetParent(transform);
             handcuff.DOLocalMove(pos, 0.3f).SetEase(Ease.OutCubic).OnComplete(() => handcuff.DOScale(scale * 1.5f, 0.1f).OnComplete(() => handcuff.DOScale(scale * 1f, 0.2f)));

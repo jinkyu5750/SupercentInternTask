@@ -51,8 +51,8 @@ public sealed class HandcuffsMaker : MonoBehaviour
     {
         for (int i = dropped - 1; i >= 0; i--)
         {
-            Vector3 pos = depositeZone.GetComponent<BoxCollider>().center; pos.y = dropped - i;
-            Vector3 scale = ores.transform.localScale;
+            Vector3 pos = depositeZone.GetComponent<BoxCollider>().center; pos.y = (dropped - i)*0.3f;
+            Vector3 scale = new Vector3(40,15,20);
             Transform ore = ores.transform.GetChild(i);
             ore.SetParent(depositeZone);
             ore.DOLocalMove(pos, 0.3f).SetEase(Ease.OutCubic).OnComplete(() => ore.DOScale(scale * 1.5f, 0.1f).OnComplete(() => ore.DOScale(scale * 1f, 0.2f)));
@@ -67,8 +67,8 @@ public sealed class HandcuffsMaker : MonoBehaviour
         for (int i = depositeZone.childCount - 1; i >= 0; i--)
         {
             Transform ore = depositeZone.GetChild(i);
-            ore.localPosition = new Vector3(0, 9, -1.5f);
-            ore.DOLocalMoveX(2.7f, 0.5f).OnComplete(() => Destroy(ore.gameObject));
+            ore.localPosition = new Vector3(-1f, 2.8f, -2.5f);
+            ore.DOLocalMoveX(3f, 1f).OnComplete(() => Destroy(ore.gameObject));
             yield return new WaitForSeconds(craftInterval);
 
         }

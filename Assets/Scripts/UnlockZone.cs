@@ -77,7 +77,12 @@ public sealed class UnlockZone : MonoBehaviour
         }
 
         // Skeleton: hook into your upgrade system (e.g., Player tool level, prison size, etc.)
-        // switch (unlockType) { ... }
+        switch (unlockType)
+        {
+            case UnlockType.ToolUpgrade:
+                player.UpgradeTool();
+                break;
+        }
     }
 }
 
