@@ -12,10 +12,16 @@ public sealed class CheckPoint : MonoBehaviour
     [SerializeField] private float imprisonInterval = 0.15f;
     [SerializeField] private Transform prisonMoveTarget;
 
+    [Header("Prisoner Queue (line in front of checkpoint)")]
+    [SerializeField] private Transform[] queueSlots;
+    [SerializeField] private float slotMoveDuration = 0.2f;
+    [SerializeField] private Ease slotMoveEase = Ease.OutCubic;
+    [SerializeField] private bool autoFillOnStart = true;
+
     [Header("Zones")]
     [SerializeField] private Collider player;
     [SerializeField] private Transform depositZone;
-    private Queue<GameObject> queue = new Queue<GameObject>();
+    private readonly List<GameObject> linedPrisoners = new List<GameObject>();
     private Coroutine processRoutine;
 
 
@@ -25,6 +31,13 @@ public sealed class CheckPoint : MonoBehaviour
       {
           player = GetComponent<Collider>();
       }*/
+
+    private void Start()
+    {
+        EnsureLineListSize();
+        if (autoFillOnStart)
+            FillBackUntilFull();
+    }
 
     private void OnTriggerEnter(Collider other)
     {
@@ -67,7 +80,7 @@ public sealed class CheckPoint : MonoBehaviour
     {
         for (int i = dropped - 1; i >= 0; i--)
         {
-            Vector3 pos = transform.GetComponent<BoxCollider>().center; pos.x -= 0.2f; pos.y = 0.5f + (dropped - i) * 0.2f;
+            Vector3 pos = transform.GetComponent<BoxCollider>().center; pos.x -= 0.2f; pos.y = 0.5f + transform.childCount * 0.2f;
             Vector3 scale = handcuffs.transform.localScale; scale.y *= 5f;
             Transform handcuff = handcuffs.transform.GetChild(i);
             handcuff.SetParent(transform);
@@ -84,9 +97,15 @@ public sealed class CheckPoint : MonoBehaviour
 
     public int GetFrontDemand()
     {
-        if (queue.Count == 0)
+        if (queueSlots == null || queueSlots.Length == 0)
             return 0;
-        return queue.Peek().GetComponent<Prisoner>().RequiredHandcuffs;
+
+        EnsureLineListSize();
+        var frontGo = linedPrisoners.Count > 0 ? linedPrisoners[0] : null;
+        if (frontGo == null)
+            return 0;
+        var prisoner = frontGo.GetComponent<Prisoner>();
+        return prisoner != null ? prisoner.RequiredHandcuffs : 0;
     }
 
     public int GetMissingForFront()
@@ -116,15 +135,35 @@ public sealed class CheckPoint : MonoBehaviour
     {
         while (true)
         {
-            queue = PrisonerPooling.instance.pool;
-            if (queue.Count == 0)
+            EnsureLineListSize();
+
+            if (queueSlots == null || queueSlots.Length == 0)
                 break;
 
-            var front = queue.Peek().GetComponent<Prisoner>();
+            var frontGo = linedPrisoners[0];
+            if (frontGo == null)
+            {
+                FillBackUntilFull();
+                yield return null;
+                continue;
+            }
+
+            var front = frontGo.GetComponent<Prisoner>();
+            if (front == null)
+            {
+                linedPrisoners[0] = null;
+                ShiftForward();
+                FillBackUntilFull();
+                yield return null;
+                continue;
+            }
+
             var need = front.RequiredHandcuffs;
             if (need <= 0)
             {
-                queue.Dequeue();
+                linedPrisoners[0] = null;
+                ShiftForward();
+                FillBackUntilFull();
                 continue;
             }
 
@@ -135,9 +174,12 @@ public sealed class CheckPoint : MonoBehaviour
             }
 
             handcuffsDeposited -= need;
-            //    queue.Dequeue();
-
             front.Imprison(prisonMoveTarget);
+            //¿©±â¼­ ¼ö°© Á¤¸®ÇØ¾ßµÊ
+            // Remove the front prisoner from the line immediately so the rest can advance.
+            linedPrisoners[0] = null;
+            ShiftForward();
+            FillBackUntilFull();
 
             // Reward hookup is intentionally loose in skeleton.
             // Typically you'd call GameEconomy.AddMoney(front.RewardMoney) or notify Player.
@@ -146,6 +188,73 @@ public sealed class CheckPoint : MonoBehaviour
         }
 
         processRoutine = null;
+    }
+
+    private void EnsureLineListSize()
+    {
+        var target = queueSlots != null ? queueSlots.Length : 0;
+        if (target <= 0)
+            return;
+
+        while (linedPrisoners.Count < target)
+            linedPrisoners.Add(null);
+        while (linedPrisoners.Count > target)
+            linedPrisoners.RemoveAt(linedPrisoners.Count - 1);
+    }
+
+    private void FillBackUntilFull()
+    {
+        if (queueSlots == null || queueSlots.Length == 0)
+            return;
+        if (PrisonerPooling.instance == null)
+            return;
+
+        EnsureLineListSize();
+
+        for (int i = 0; i < queueSlots.Length; i++)
+        {
+            if (linedPrisoners[i] != null)
+                continue;
+
+            var slot = queueSlots[i];
+            if (slot == null)
+                continue;
+
+            // Spawn directly at slot position to guarantee a clean line.
+            var go = PrisonerPooling.instance.Get(slot.position, slot.rotation);
+            linedPrisoners[i] = go;
+        }
+    }
+
+    private void ShiftForward()
+    {
+        if (queueSlots == null || queueSlots.Length == 0)
+            return;
+
+        EnsureLineListSize();
+
+        for (int i = 0; i < queueSlots.Length - 1; i++)
+        {
+            if (linedPrisoners[i] != null)
+                continue;
+
+            // Pull the next prisoner forward.
+            int next = i + 1;
+            var go = linedPrisoners[next];
+            if (go == null)
+                continue;
+
+            linedPrisoners[i] = go;
+            linedPrisoners[next] = null;
+
+            var slot = queueSlots[i];
+            if (slot != null)
+            {
+                go.transform.DOKill();
+                go.transform.DOMove(slot.position, slotMoveDuration).SetEase(slotMoveEase);
+                go.transform.DORotateQuaternion(slot.rotation, slotMoveDuration).SetEase(slotMoveEase);
+            }
+        }
     }
 }
 

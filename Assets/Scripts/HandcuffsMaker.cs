@@ -1,8 +1,10 @@
-using DG.Tweening;
+ï»¿using DG.Tweening;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 public sealed class HandcuffsMaker : MonoBehaviour
 {
+    private Stack<GameObject> oreQueue = new Stack<GameObject>();
     [Header("Storage")]
     [SerializeField] private int handcuffStoredMax = 200;
     [SerializeField] private int handcuffStored;
@@ -42,39 +44,63 @@ public sealed class HandcuffsMaker : MonoBehaviour
         if (dropped <= 0)
             return;
 
-        StartCoroutine(MoveOreToZone(ores, dropped));
-        DepositOre(dropped);
 
+
+        StartCoroutine(MoveOre_PlayerToZone(ores, dropped));
+        DepositOre(dropped);
     }
 
-    public IEnumerator MoveOreToZone(GameObject ores, int dropped)
+    public IEnumerator MoveOre_PlayerToZone(GameObject ores, int dropped)
     {
+
         for (int i = dropped - 1; i >= 0; i--)
         {
-            Vector3 pos = depositeZone.GetComponent<BoxCollider>().center; pos.y = (dropped - i)*0.3f;
-            Vector3 scale = new Vector3(40,15,20);
-            Transform ore = ores.transform.GetChild(i);
-            ore.SetParent(depositeZone);
-            ore.DOLocalMove(pos, 0.3f).SetEase(Ease.OutCubic).OnComplete(() => ore.DOScale(scale * 1.5f, 0.1f).OnComplete(() => ore.DOScale(scale * 1f, 0.2f)));
-
-
-            ore.transform.localRotation = Quaternion.Euler(-90f, 0, 0);
-
+            var ore = ores.transform.GetChild(i).gameObject;
+            oreQueue.Push(ore);
+            MoveSingleOreToZone(ore.transform);
             yield return new WaitForSeconds(0.05f);
         }
+
         yield return new WaitForSeconds(0.3f);
 
-        for (int i = depositeZone.childCount - 1; i >= 0; i--)
+        while (oreQueue.Count > 0)
         {
-            Transform ore = depositeZone.GetChild(i);
-            ore.localPosition = new Vector3(-1f, 2.8f, -2.5f);
-            ore.DOLocalMoveX(3f, 1f).OnComplete(() => Destroy(ore.gameObject));
+            var ore = oreQueue.Pop();
+            MoveZoneToConveyor(ore);
             yield return new WaitForSeconds(craftInterval);
 
         }
-
     }
 
+
+    public IEnumerator MoveOre_WorkerToZone(GameObject ore)
+    {
+        
+        yield return MoveSingleOreToZone(ore.transform, 1f).WaitForCompletion();
+        MoveZoneToConveyor(ore);
+    }
+ 
+    public Tween MoveSingleOreToZone(Transform ore, float moveSpeed = 0.3f)
+    {
+        Vector3 scale = new Vector3(40, 15, 20);
+        Vector3 pos = depositeZone.GetComponent<BoxCollider>().center;
+        pos.y = 0.5f + depositeZone.childCount * 0.5f;
+
+        ore.SetParent(depositeZone);
+
+        ore.localRotation = Quaternion.Euler(-90f, 0, 0);
+        Sequence seq = DOTween.Sequence(); 
+        seq.Append(ore.DOLocalMove(pos, moveSpeed).SetEase(Ease.OutCubic));
+        seq.Append(ore.DOScale(scale * 1.5f, 0.1f));
+        seq.Append(ore.DOScale(scale, 0.2f));
+        return seq; 
+    }
+    private void MoveZoneToConveyor(GameObject ore)
+    {
+        ore.transform.SetParent(transform);
+        ore.transform.localPosition = new Vector3(0f, 1.2f, 3f);
+        ore.transform.DOLocalMoveZ(0f, 1f).OnComplete(() => Destroy(ore.gameObject));
+    }
     public void DepositOre(int amount)
     {
         if (amount <= 0)
@@ -88,7 +114,7 @@ public sealed class HandcuffsMaker : MonoBehaviour
 
     private IEnumerator CraftLoop()
     {
-        yield return new WaitForSeconds(0.5f); // ¿¬Ãâ¿ë
+        yield return new WaitForSeconds(1f); // ì—°ì¶œìš©
         while (oreInputBuffer > 0)
         {
             if (handcuffStored >= handcuffStoredMax)
@@ -99,8 +125,8 @@ public sealed class HandcuffsMaker : MonoBehaviour
 
             oreInputBuffer -= 1;
             handcuffStored += 1;
-            var handcuff=  Instantiate(handcuffPrefab, withdrawZone.transform);
-            Vector3 pos = withdrawZone.GetComponent<BoxCollider>().center; pos.y = 0.5f + handcuffStored*0.2f;
+            var handcuff = Instantiate(handcuffPrefab, withdrawZone.transform);
+            Vector3 pos = withdrawZone.GetComponent<BoxCollider>().center; pos.y = 0.5f + handcuffStored * 0.2f;
             Vector3 scale = handcuff.transform.localScale;
 
             handcuff.transform.localPosition = pos;
@@ -124,7 +150,7 @@ public sealed class HandcuffsMaker : MonoBehaviour
 
     public int WithdrawHandcuffs()
     {
-        if (handcuffStored <= 0) return 0 ;
+        if (handcuffStored <= 0) return 0;
         var taken = HandcuffStored;
         handcuffStored = 0;
         return taken;

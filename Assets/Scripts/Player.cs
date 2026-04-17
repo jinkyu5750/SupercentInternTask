@@ -186,9 +186,10 @@ public sealed class Player : MonoBehaviour
         carriedOre += canAdd;
 
         var ore = Instantiate(carriedOrePrefab, carriedOrePos.transform);
-        ore.transform.localPosition = new Vector3(0, 0, carriedOre * 0.02f);
+        Vector3 scale = ore.transform.localScale;
+        ore.transform.localPosition = new Vector3(0, 0, carriedOre * 0.2f);
         ore.transform.localRotation = Quaternion.Euler(Vector3.zero);
-        ore.transform.DOScale(ore.transform.localScale * 2.5f, 0.1f).OnComplete(() => ore.transform.DOScale(ore.transform.localScale * 1f, 0.2f));
+        ore.transform.DOScale(scale* 2.5f, 0.1f).OnComplete(() => ore.transform.DOScale(scale * 1f, 0.2f));
     }
 
     public void UpgradeTool()
@@ -222,8 +223,8 @@ public sealed class Player : MonoBehaviour
         {
 
             Transform handcuff = zone.transform.GetChild(i);
-            handcuff.SetParent(carriedHandcuffPos.transform, false);
-            handcuff.DOLocalMove(new Vector3(0,(handCuffNum - i) * 0.1f,0), 0.3f).SetEase(Ease.OutCubic).OnComplete(() => handcuff.DOScale(scale * 1.5f, 0.1f).OnComplete(() => handcuff.DOScale(scale * 1f, 0.2f)));
+            handcuff.SetParent(carriedHandcuffPos.transform);
+            handcuff.DOLocalMove(new Vector3(0,carriedHandcuffPos.transform.childCount * 0.1f,0), 0.3f).SetEase(Ease.OutCubic).OnComplete(() => handcuff.DOScale(scale * 1.5f, 0.1f).OnComplete(() => handcuff.DOScale(scale * 1f, 0.2f)));
             handcuff.localRotation = Quaternion.Euler(Vector3.zero);
 
             //  ore.transform.localRotation = Quaternion.Euler(-90f, 0, 0);

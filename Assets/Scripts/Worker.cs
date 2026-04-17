@@ -8,10 +8,10 @@ public sealed class Worker : MonoBehaviour
 
     [Header("Mining")]
     [SerializeField] private int hitsPerOre = 2;
-    [SerializeField] private float hitInterval = 0.25f;
+    [SerializeField] private float hitInterval = 0.5f;
     [SerializeField] private float searchRadius = 12f;
     [SerializeField] private LayerMask oreMask = ~0;
-
+    [SerializeField] private GameObject orePrefab;
     [Header("Carry")]
     [SerializeField] private int carryOreMax = 1;
     [SerializeField] private int carriedOre;
@@ -19,7 +19,7 @@ public sealed class Worker : MonoBehaviour
     [Header("AI")]
     [SerializeField] private float thinkInterval = 0.25f;
     [SerializeField] private float interactDistance = 1.25f;
-
+    [SerializeField] private float moveSpeed;
     private Coroutine workRoutine;
 
     private void OnEnable()
@@ -46,21 +46,6 @@ public sealed class Worker : MonoBehaviour
             if (maker == null)
                 continue;
 
-            if (carriedOre > 0)
-            {
-                if (IsNear(maker.transform.position))
-                {
-                    maker.DepositOre(carriedOre);
-                    carriedOre = 0;
-                }
-                else
-                {
-                    MoveTowards(maker.transform.position);
-                }
-
-                continue;
-            }
-
             var ore = FindNearestAvailableOre();
             if (ore == null)
                 continue;
@@ -86,8 +71,13 @@ public sealed class Worker : MonoBehaviour
             yield return new WaitForSeconds(hitInterval);
 
         if (ore.TryMineOne())
-            carriedOre += 1;
+        {
+            var _orePrefab = Instantiate(orePrefab, transform.position, Quaternion.identity);
+            StartCoroutine(maker.MoveOre_WorkerToZone(_orePrefab));
+            maker.DepositOre(1);
+        }
     }
+
 
     private Ore FindNearestAvailableOre()
     {
@@ -100,7 +90,7 @@ public sealed class Worker : MonoBehaviour
 
         for (var i = 0; i < hits.Length; i++)
         {
-            var ore = hits[i].GetComponentInParent<Ore>();
+            var ore = hits[i].GetComponent<Ore>();
             if (ore == null || !ore.IsAvailable)
                 continue;
 
@@ -127,7 +117,7 @@ public sealed class Worker : MonoBehaviour
         // Skeleton: replace with NavMeshAgent.
         var p = transform.position;
         targetPos.y = p.y;
-        transform.position = Vector3.MoveTowards(p, targetPos, 3.0f * Time.deltaTime);
+        transform.position = Vector3.MoveTowards(p, targetPos, moveSpeed * Time.deltaTime);
     }
 }
 

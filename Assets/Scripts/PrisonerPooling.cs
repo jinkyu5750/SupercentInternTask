@@ -7,10 +7,9 @@ public class PrisonerPooling : MonoBehaviour
     public static PrisonerPooling instance;
     [SerializeField] private GameObject prisonerPrefab;
     [SerializeField] private int preloadCount = 20;
-    public  Queue<GameObject> pool = new Queue<GameObject>();
+    public Queue<GameObject> pool = new Queue<GameObject>();
 
-    [SerializeField] private float spacing = 1f;
-    [SerializeField] private BoxCollider spawnRange;
+    // Spawning/queue positioning is owned by CheckPoint. This pool only provides instances.
     private void Awake()
     {
         if (instance == null)
@@ -28,22 +27,6 @@ public class PrisonerPooling : MonoBehaviour
             prisoner.SetActive(false);
             pool.Enqueue(prisoner);
         }
-
-        Vector3 size = spawnRange.size;
-        Vector3 center = spawnRange.center;
-
-        for (float x = size.x / 2; x > -size.x / 2; x -= spacing)
-        {
-       
-                Vector3 localPos = new Vector3(x, 0, 0) + center;
-                Vector3 worldPos = spawnRange.transform.TransformPoint(localPos);
-
-                var prisoner = Get(worldPos, prisonerPrefab.transform.rotation);
-
-            
-        }
-
-
     }
     public GameObject Get(Vector3 position, Quaternion rotation)
     {
@@ -51,6 +34,13 @@ public class PrisonerPooling : MonoBehaviour
         prisoner.transform.SetPositionAndRotation(position, rotation);
         prisoner.gameObject.SetActive(true);
         return prisoner;
+    }
+
+    public GameObject Get(Transform spawnPoint)
+    {
+        if (spawnPoint == null)
+            return Get(Vector3.zero, Quaternion.identity);
+        return Get(spawnPoint.position, spawnPoint.rotation);
     }
     public void Release(GameObject prisoner)
     {
