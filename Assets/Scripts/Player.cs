@@ -1,3 +1,5 @@
+using DG.Tweening;
+using System.Collections;
 using UnityEngine;
 
 public sealed class Player : MonoBehaviour
@@ -29,6 +31,7 @@ public sealed class Player : MonoBehaviour
     [Header("Mining")]
     [SerializeField] private GameObject miningTool;
     [SerializeField] private GameObject carriedOrePos;
+    [SerializeField] private GameObject carriedHandcuffPos;
     [SerializeField] private GameObject carriedOrePrefab;
     int pickaxeRemaining;
     public int Money => money;
@@ -36,10 +39,10 @@ public sealed class Player : MonoBehaviour
     public int CarriedHandcuffs => carriedHandcuffs;
     public int CarryOreMax => carryOreMax;
     public int CarryHandcuffMax => carryHandcuffMax;
-  
 
-    [SerializeField]private int carriedOre;
-   [SerializeField] private int carriedHandcuffs;
+
+    [SerializeField] private int carriedOre;
+    [SerializeField] private int carriedHandcuffs;
 
     private Camera cam;
 
@@ -62,12 +65,12 @@ public sealed class Player : MonoBehaviour
     {
         UpdatePointer();
         MoveByDragJoystick();
-  
+
     }
 
     private void UpdatePointer()
     {
-       
+
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -99,7 +102,7 @@ public sealed class Player : MonoBehaviour
         var clamped = Vector2.ClampMagnitude(delta, joystickRadiusPixels);
         var input = clamped / Mathf.Max(1f, joystickRadiusPixels);
 
- 
+
         // Convert screen joystick to world direction using camera axes on XZ plane.
         var camForward = cam.transform.forward;
         var camRight = cam.transform.right;
@@ -122,7 +125,7 @@ public sealed class Player : MonoBehaviour
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotationLerpSpeed * Time.deltaTime);
     }
 
-  
+
     public void AddMoney(int amount)
     {
         money += Mathf.Max(0, amount);
@@ -138,31 +141,32 @@ public sealed class Player : MonoBehaviour
         return true;
     }
 
-    public int TakeAllCarriedOre()
+    public GameObject TakeAllCarriedOre()
     {
-        var taken = carriedOre;
+        var taken = carriedOrePos;
         carriedOre = 0;
         return taken;
     }
 
-    public int TakeAllCarriedHandcuffs()
+
+    public GameObject TakeAllCarriedHandcuffs()
     {
-        var taken = carriedHandcuffs;
+        var taken = carriedHandcuffPos;
         carriedHandcuffs = 0;
         return taken;
     }
 
-    public int AddCarriedHandcuffs(int amount)
+    public void AddCarriedHandcuffs(int amount)
     {
         if (amount <= 0)
-            return 0;
+            return;
 
         var canAdd = Mathf.Min(amount, carryHandcuffMax - carriedHandcuffs);
         if (canAdd <= 0)
-            return 0;
+            return;
 
         carriedHandcuffs += canAdd;
-        return canAdd;
+
     }
 
     public void AddCarriedOre(int amount)
@@ -176,36 +180,56 @@ public sealed class Player : MonoBehaviour
 
         carriedOre += canAdd;
 
-        var ore =  Instantiate(carriedOrePrefab,carriedOrePos.transform);
+        var ore = Instantiate(carriedOrePrefab, carriedOrePos.transform);
         ore.transform.localPosition = new Vector3(0, 0, carriedOre * 0.02f);
         ore.transform.localRotation = Quaternion.Euler(Vector3.zero);
-        
+
     }
 
     public void OnMiningToolCol()
     {
         pickaxeRemaining = 1;
-        miningTool.GetComponent<CapsuleCollider>().enabled=true;
+        miningTool.GetComponent<CapsuleCollider>().enabled = true;
     }
     public void OffMiningToolCol()
     {
         miningTool.GetComponent<CapsuleCollider>().enabled = false;
     }
+    public IEnumerator MoveHandcuffToPlayer(Transform zone)
+    {
+        var handCuffNum = zone.transform.childCount;
+        if (handCuffNum <= 0) yield break;
+
+        Vector3 scale = zone.transform.GetChild(0).localScale;
+
+        for (int i = handCuffNum - 1; i >= 0; i--)
+        {
+
+            Transform handcuff = zone.transform.GetChild(i);
+            handcuff.SetParent(carriedHandcuffPos.transform, false);
+            handcuff.DOLocalMove(new Vector3(0,(handCuffNum - i) * 0.1f,0), 0.3f).SetEase(Ease.OutCubic).OnComplete(() => handcuff.DOScale(scale * 1.5f, 0.1f).OnComplete(() => handcuff.DOScale(scale * 1f, 0.2f)));
+            handcuff.localRotation = Quaternion.Euler(Vector3.zero);
+
+            //  ore.transform.localRotation = Quaternion.Euler(-90f, 0, 0);
+
+            yield return new WaitForSeconds(0.05f);
+        }
+    }
     private void OnTriggerEnter(Collider other)
     {
-        if(other.tag.Equals("MiningZone"))
+        if (other.tag.Equals("MiningZone"))
         {
             miningTool.SetActive(true);
             ani.SetBool("IsMining", true);
         }
 
-        if(other.tag.Equals("Ore")) 
+        if (other.tag.Equals("Ore"))
         {
 
 
             AddCarriedOre(1);
 
-            //°î±ªÀÌ¶ó¸é
+            //ï¿½î±ªï¿½Ì¶ï¿½ï¿½
             if (pickaxeRemaining == 1)
             {
                 pickaxeRemaining--;
@@ -213,6 +237,12 @@ public sealed class Player : MonoBehaviour
             }
 
 
+        }
+
+        if (other.name.Equals("HandcuffWithdrawZone"))
+        {
+            AddCarriedHandcuffs(other.transform.parent.GetComponent<HandcuffsMaker>().WithdrawHandcuffs()); // ìˆ˜ê°‘ì–‘ ++
+            StartCoroutine(MoveHandcuffToPlayer(other.transform));
         }
     }
 

@@ -1,3 +1,4 @@
+using DG.Tweening;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,55 +13,69 @@ public sealed class CheckPoint : MonoBehaviour
     [SerializeField] private Transform prisonMoveTarget;
 
     [Header("Zones")]
-    [SerializeField] private Collider handcuffDepositZone;
-
-    private readonly Queue<Prisoner> queue = new Queue<Prisoner>();
+    [SerializeField] private Collider player;
+    [SerializeField] private Transform depositZone;
+    private Queue<GameObject> queue = new Queue<GameObject>();
     private Coroutine processRoutine;
 
     public int HandcuffsDeposited => handcuffsDeposited;
 
-    private void Reset()
-    {
-        handcuffDepositZone = GetComponent<Collider>();
-    }
+    /*  private void Reset()
+      {
+          player = GetComponent<Collider>();
+      }*/
 
-    private void OnTriggerStay(Collider other)
+    private void OnTriggerEnter(Collider other)
     {
-        if (handcuffDepositZone != null && other != handcuffDepositZone)
+        if (player != null && other != player)
             return;
 
-        var player = other.GetComponentInParent<Player>();
-        if (player != null)
+        var _player = other.GetComponentInParent<Player>();
+        if (_player != null)
         {
-            var dropped = player.TakeAllCarriedHandcuffs();
+            var handcuffs = _player.TakeAllCarriedHandcuffs();
+            var dropped = handcuffs.transform.childCount;
             if (dropped > 0)
+            {
                 DepositHandcuffs(dropped);
+                StartCoroutine(MoveHandcuffToZone(handcuffs, dropped));
+
+            }
             return;
         }
 
-        var officer = other.GetComponentInParent<PrisonOfficer>();
-        if (officer != null)
-        {
-            var dropped = officer.TakeAllCarriedHandcuffs();
-            if (dropped > 0)
-                DepositHandcuffs(dropped);
-        }
+        /*     var officer = other.GetComponentInParent<PrisonOfficer>();
+             if (officer != null)
+             {
+                 var dropped = officer.TakeAllCarriedHandcuffs();
+                 if (dropped > 0)
+                     DepositHandcuffs(dropped);
+             }*/
     }
-
-    public void EnqueuePrisoner(Prisoner prisoner)
+    public IEnumerator MoveHandcuffToZone(GameObject handcuffs, int dropped)
     {
-        if (prisoner == null)
-            return;
+        for (int i = dropped - 1; i >= 0; i--)
+        {
+            Vector3 pos = transform.GetComponent<BoxCollider>().center; pos.x -= 0.2f; pos.y = 0.5f + (dropped - i) * 0.2f;
+            Vector3 scale = handcuffs.transform.localScale; scale.y *= 10f;
+            Transform handcuff = handcuffs.transform.GetChild(i);
+            handcuff.SetParent(transform);
+            handcuff.DOLocalMove(pos, 0.3f).SetEase(Ease.OutCubic).OnComplete(() => handcuff.DOScale(scale * 1.5f, 0.1f).OnComplete(() => handcuff.DOScale(scale * 1f, 0.2f)));
 
-        queue.Enqueue(prisoner);
-        EnsureProcessing();
+
+            handcuff.transform.localRotation = Quaternion.identity;
+
+            yield return new WaitForSeconds(0.05f);
+        }
+
+
     }
 
     public int GetFrontDemand()
     {
         if (queue.Count == 0)
             return 0;
-        return queue.Peek().RequiredHandcuffs;
+        return queue.Peek().GetComponent<Prisoner>().RequiredHandcuffs;
     }
 
     public int GetMissingForFront()
@@ -90,10 +105,11 @@ public sealed class CheckPoint : MonoBehaviour
     {
         while (true)
         {
+            queue = PrisonerPooling.instance.pool;
             if (queue.Count == 0)
                 break;
 
-            var front = queue.Peek();
+            var front = queue.Peek().GetComponent<Prisoner>();
             var need = front.RequiredHandcuffs;
             if (need <= 0)
             {
@@ -108,7 +124,7 @@ public sealed class CheckPoint : MonoBehaviour
             }
 
             handcuffsDeposited -= need;
-            queue.Dequeue();
+            //    queue.Dequeue();
 
             front.Imprison(prisonMoveTarget);
 
