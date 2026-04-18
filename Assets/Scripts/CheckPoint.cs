@@ -52,7 +52,6 @@ public sealed class CheckPoint : MonoBehaviour
             var dropped = handcuffs.transform.childCount;
             if (dropped > 0)
             {
-                DepositHandcuffs(dropped);
                 StartCoroutine(MoveHandcuffToZone(handcuffs, dropped));
 
             }
@@ -74,16 +73,16 @@ public sealed class CheckPoint : MonoBehaviour
     }
     public void ChangeZoneColor(bool active)
     {
-        depositZone.GetComponent<MeshRenderer>().material.color = active? new Color32(50, 255, 0,255):new Color32(255,255,255,255);
+        depositZone.GetComponent<MeshRenderer>().material.color = active ? new Color32(50, 255, 0, 255) : new Color32(255, 255, 255, 255);
     }
     public IEnumerator MoveHandcuffToZone(GameObject handcuffs, int dropped)
     {
         for (int i = dropped - 1; i >= 0; i--)
         {
-            Vector3 pos = transform.GetComponent<BoxCollider>().center; pos.x -= 0.2f; pos.y = 0.5f + transform.childCount * 0.2f;
-            Vector3 scale = handcuffs.transform.localScale; scale.y *= 5f;
+            Vector3 pos = new Vector3(2f,7.5f,-0.3f);  pos.y += depositZone.childCount * 0.5f;
+            Vector3 scale = new Vector3(3, 20, 2);
             Transform handcuff = handcuffs.transform.GetChild(i);
-            handcuff.SetParent(transform);
+            handcuff.SetParent(depositZone.transform);
             handcuff.DOLocalMove(pos, 0.3f).SetEase(Ease.OutCubic).OnComplete(() => handcuff.DOScale(scale * 1.5f, 0.1f).OnComplete(() => handcuff.DOScale(scale * 1f, 0.2f)));
 
 
@@ -92,6 +91,7 @@ public sealed class CheckPoint : MonoBehaviour
             yield return new WaitForSeconds(0.05f);
         }
 
+        DepositHandcuffs(dropped);
 
     }
 
@@ -131,6 +131,22 @@ public sealed class CheckPoint : MonoBehaviour
             processRoutine = StartCoroutine(ProcessLoop());
     }
 
+    public IEnumerator MoveHandcuffZoneToPrisoner(Prisoner prisoner,int need)
+    {
+        int i = depositZone.transform.childCount - 1;
+
+        Vector3 pos = new Vector3(0.5f, 1f, 0);
+        while (need > 0)
+        {
+
+            var handcuff = depositZone.transform.GetChild(i);
+            handcuff.SetParent(prisoner.transform);
+            handcuff.DOLocalMove(pos, 0.1f).OnComplete(()=>Destroy(handcuff.gameObject));
+            i--;
+            need--;
+            yield return new WaitForSeconds(0.3f);
+        }
+    }
     private IEnumerator ProcessLoop()
     {
         while (true)
@@ -172,10 +188,10 @@ public sealed class CheckPoint : MonoBehaviour
                 yield return null;
                 continue;
             }
+            StartCoroutine(MoveHandcuffZoneToPrisoner(front, need)); // 연출
 
             handcuffsDeposited -= need;
             front.Imprison(prisonMoveTarget);
-            //여기서 수갑 정리해야됨
             // Remove the front prisoner from the line immediately so the rest can advance.
             linedPrisoners[0] = null;
             ShiftForward();
@@ -221,7 +237,7 @@ public sealed class CheckPoint : MonoBehaviour
                 continue;
 
             // Spawn directly at slot position to guarantee a clean line.
-            var go = PrisonerPooling.instance.Get(slot.position, slot.rotation);
+            var go = PrisonerPooling.instance.Get(slot.position+ Vector3.up, slot.rotation);
             linedPrisoners[i] = go;
         }
     }
@@ -251,7 +267,7 @@ public sealed class CheckPoint : MonoBehaviour
             if (slot != null)
             {
                 go.transform.DOKill();
-                go.transform.DOMove(slot.position, slotMoveDuration).SetEase(slotMoveEase);
+                go.transform.DOMove(slot.position+Vector3.up, slotMoveDuration).SetEase(slotMoveEase);
                 go.transform.DORotateQuaternion(slot.rotation, slotMoveDuration).SetEase(slotMoveEase);
             }
         }

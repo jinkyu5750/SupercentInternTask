@@ -1,8 +1,12 @@
 using System.Collections;
+using Unity.VisualScripting;
 using UnityEngine;
+using static Player;
 
 public sealed class Worker : MonoBehaviour
 {
+
+    [SerializeField] private Animator ani;
     [Header("Refs")]
     [SerializeField] private HandcuffsMaker maker;
 
@@ -12,6 +16,7 @@ public sealed class Worker : MonoBehaviour
     [SerializeField] private float searchRadius = 12f;
     [SerializeField] private LayerMask oreMask = ~0;
     [SerializeField] private GameObject orePrefab;
+    [SerializeField] private GameObject miningTool;
     [Header("Carry")]
     [SerializeField] private int carryOreMax = 1;
     [SerializeField] private int carriedOre;
@@ -37,6 +42,10 @@ public sealed class Worker : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        ani = GetComponent<Animator>();
+    }
     private IEnumerator WorkLoop()
     {
         while (true)
@@ -66,6 +75,7 @@ public sealed class Worker : MonoBehaviour
             yield break;
         if (carriedOre >= carryOreMax)
             yield break;
+        ani.SetInteger("Mining", 1);
 
         for (var i = 0; i < hitsPerOre; i++)
             yield return new WaitForSeconds(hitInterval);
@@ -115,9 +125,21 @@ public sealed class Worker : MonoBehaviour
     private void MoveTowards(Vector3 targetPos)
     {
         // Skeleton: replace with NavMeshAgent.
+            ani.SetInteger("Mining", -1);
         var p = transform.position;
         targetPos.y = p.y;
-        transform.position = Vector3.MoveTowards(p, targetPos, moveSpeed * Time.deltaTime);
+        Vector3 velocity= Vector3.zero;
+        transform.position = Vector3.SmoothDamp(p, targetPos, ref velocity, moveSpeed);
     }
+
+    public void OnAxeCol()
+    {
+        miningTool.GetComponent<CapsuleCollider>().enabled = true;
+    }
+    public void OffAxeCol()
+    {
+        miningTool.GetComponent<CapsuleCollider>().enabled = false;
+    }
+
 }
 

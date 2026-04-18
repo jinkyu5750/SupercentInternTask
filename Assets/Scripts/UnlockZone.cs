@@ -15,9 +15,11 @@ public sealed class UnlockZone : MonoBehaviour
     [SerializeField] private int cost = 50;
     [SerializeField] private float holdSeconds = 1.25f;
     [SerializeField] private bool unlocked;
+    public int Cost => cost;
 
     [Header("Spawn (optional)")]
     [SerializeField] private GameObject prefabToSpawn;
+    [SerializeField] private GameObject workerPrefab;
     [SerializeField] private Transform spawnPoint;
 
     [Header("Prerequisite (optional)")]
@@ -81,6 +83,15 @@ public sealed class UnlockZone : MonoBehaviour
         {
             case UnlockType.ToolUpgrade:
                 player.UpgradeTool();
+                break;
+            case UnlockType.SpawnWorker:
+                GameObject worker;
+                Transform pos = GameObject.Find("Workers").transform;
+                for (int i = 0; i < 3; i++)
+                {
+                    worker = Instantiate(workerPrefab,pos);
+                    worker.transform.localPosition = new Vector3(i, 0, 0);
+                }
                 break;
         }
     }

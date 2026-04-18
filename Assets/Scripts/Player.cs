@@ -212,20 +212,21 @@ public sealed class Player : MonoBehaviour
     {
         miningTool.GetComponent<CapsuleCollider>().enabled = false;
     }
-    public IEnumerator MoveHandcuffToPlayer(Transform zone)
+    public IEnumerator MoveItemToPlayer(Transform zone,bool carryPos_IsFront)
     {
-        var handCuffNum = zone.transform.childCount;
-        if (handCuffNum <= 0) yield break;
+        var itemNum= zone.transform.childCount;
+        if (itemNum <= 0) yield break;
 
         Vector3 scale = zone.transform.GetChild(0).localScale;
 
-        for (int i = handCuffNum - 1; i >= 0; i--)
+        for (int i = itemNum - 1; i >= 0; i--)
         {
+            Transform item = zone.transform.GetChild(i);
+            Transform carryPos = carryPos_IsFront ? carriedOrePos.transform : carriedHandcuffPos.transform;
 
-            Transform handcuff = zone.transform.GetChild(i);
-            handcuff.SetParent(carriedHandcuffPos.transform);
-            handcuff.DOLocalMove(new Vector3(0,carriedHandcuffPos.transform.childCount * 0.1f,0), 0.3f).SetEase(Ease.OutCubic).OnComplete(() => handcuff.DOScale(scale * 1.5f, 0.1f).OnComplete(() => handcuff.DOScale(scale * 1f, 0.2f)));
-            handcuff.localRotation = Quaternion.Euler(Vector3.zero);
+            item.SetParent(carryPos.transform);
+            item.DOLocalMove(new Vector3(0,carriedHandcuffPos.transform.childCount * 0.1f,0), 0.3f).SetEase(Ease.OutCubic).OnComplete(() => item.DOScale(scale * 1.5f, 0.1f).OnComplete(() => item.DOScale(scale * 1f, 0.2f)));
+            item.localRotation = Quaternion.Euler(Vector3.zero);
 
             //  ore.transform.localRotation = Quaternion.Euler(-90f, 0, 0);
 
@@ -262,7 +263,7 @@ public sealed class Player : MonoBehaviour
         if (other.name.Equals("HandcuffWithdrawZone"))
         {
             AddCarriedHandcuffs(other.transform.parent.GetComponent<HandcuffsMaker>().WithdrawHandcuffs()); // 수갑양 ++
-            StartCoroutine(MoveHandcuffToPlayer(other.transform));
+            StartCoroutine(MoveItemToPlayer(other.transform,true));
         }
     }
 
